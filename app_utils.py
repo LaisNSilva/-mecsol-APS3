@@ -195,3 +195,25 @@ def solucao_gauss(k, F, ite, tol):
             matriz_x[indice] = (b - ax)/k[indice, indice]
             
     return matriz_x
+
+def solucao_jacobi(k, F, ite, tol):
+    """
+    função responsável por calcular a solução de Gauss para um sistema de equações
+    recebe: matriz k, matriz de forças, número de iterações [inteiro], tolerância [float]
+    retorna: solução do sistema de equações através da teoria de Gauss [matriz]
+    """
+    
+    matriz_x = np.zeros((F.shape[0], 1)) #cria uma matriz nx1
+    matriz_x_auxiliar = np.zeros((F.shape[0], 1))
+    
+    for iteracao in range(ite):
+        for indice in range(matriz_x.shape[0]):
+            b = F[indice]
+            ax = sum(a*x for a,x in zip(k[indice, :], matriz_x[:,0])) - k[indice, indice]*matriz_x[indice,0]            
+            matriz_x_auxiliar[indice] = (b - ax)/k[indice, indice]
+            
+        matriz_x = matriz_x_auxiliar
+        #print(matriz_x)
+        #print("--------------") #Com esse print é possivel perceber que a de Gauss converte antes
+            
+    return matriz_x
