@@ -179,7 +179,10 @@ def tensao_e_deformacao(n_elemento, n_de_membros, matriz_u, m_incidencia, m_nos)
     
     return tensao[0], deformacao[0]
 
-def solucao_gauss(k, F, ite, tol):
+def compara_solucoes(array1, array2):
+    return max( abs( (s2 - s1)/s2) for s1,s2 in zip(array1, array2))
+
+def solucao_gauss(k, F, ite, tol=1e-3):
     """
     função responsável por calcular a solução de Gauss para um sistema de equações
     recebe: matriz k, matriz de forças, número de iterações [inteiro], tolerância [float]
@@ -187,13 +190,24 @@ def solucao_gauss(k, F, ite, tol):
     """
     
     matriz_x = np.zeros((F.shape[0], 1)) #cria uma matriz nx1
+    matriz_compare = matriz_x.copy() #salva os valores da iteração anterior
     
     for iteracao in range(ite):
         for indice in range(matriz_x.shape[0]):
             b = F[indice]
             ax = sum(a*x for a,x in zip(k[indice, :], matriz_x[:,0])) - k[indice, indice]*matriz_x[indice,0]            
             matriz_x[indice] = (b - ax)/k[indice, indice]
-            
+        
+        erro = compara_solucoes(matriz_compare[:,0], matriz_x[:,0])
+        
+        
+        
+        if erro < tol and iteracao > 1:
+            print("Convergiu na {0}º iteracao".format(iteracao))
+            break
+        else:
+            matriz_compare = matriz_x.copy() #atualiza valores 
+        
     return matriz_x
 
 def solucao_jacobi(k, F, ite, tol):
@@ -213,6 +227,7 @@ def solucao_jacobi(k, F, ite, tol):
             matriz_x_auxiliar[indice] = (b - ax)/k[indice, indice]
             
         matriz_x = matriz_x_auxiliar
+        
         #print(matriz_x)
         #print("--------------") #Com esse print é possivel perceber que a de Gauss converte antes
             
