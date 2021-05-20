@@ -16,7 +16,7 @@ def distancia_entre_pontos(x1, x2, y1, y2):
     
     return sqrt((x2 - x1)**2 + (y2 - y1)**2)
 
-def matriz_conectividade(numero_do_membro, incidencia, numero_de_elementos=3):
+def matriz_conectividade(numero_do_membro, incidencia, numero_de_elementos):
     """
     função que calcula a matriz de conectividade de um elemento específico
     recebe: número do elemento [inteiro] e a matriz de incidência lida do excel [matriz]
@@ -34,7 +34,7 @@ def matriz_conectividade(numero_do_membro, incidencia, numero_de_elementos=3):
 
     return conectividade
 
-def conec_global_T(nos, incidencia):
+def conec_global_T(incidencia, num_membros, num_nos):
     """
     função responsável por devolver a matriz de conectividade global
     recebe: número de nós [inteiro], matriz de incidencia [matriz]
@@ -42,8 +42,8 @@ def conec_global_T(nos, incidencia):
     """
   
     C = []
-    for i in range(nos):
-        C.append(matriz_conectividade(i+1, incidencia)) #repare que i começa em 0
+    for i in range(num_membros):
+        C.append(matriz_conectividade(i+1, incidencia, num_nos)) #repare que i começa em 0
     return np.array(C).T
 
 
@@ -77,34 +77,34 @@ def calculate_Se(n_membro, m_incidencia, m_nos, m_membros):
     segunda_parte = (np.dot(coornadas_matriz_T, coornadas_matriz))/me
     return ((E*A)/l)*segunda_parte
 
-def  calculate_K(n_membro, m_incidencia, m_nos, m_membros):
+def  calculate_K(n_membro, m_incidencia, m_nos, m_membros, num_membros):
     """
     função responsável por calcular a matriz K para um elemento
     recebe: número do membro [inteiro], matriz incidência, matriz de nós e matriz de membros
     retorna: matriz K para o dado elemento
     """
     
-    MC = np.array([matriz_conectividade(n_membro, m_incidencia)]) #matriz conectividade
+    MC = np.array([matriz_conectividade(n_membro, m_incidencia, num_membros)]) #matriz conectividade
     MC_T = np.transpose(MC) #matriz conectividade transposta
     Se = calculate_Se(n_membro, m_incidencia, m_nos, m_membros)
     dot = MC * MC_T
     return np.kron(dot, Se) 
 
-def matriz_global(elementos, m_incidencia, m_nos, m_membros):
+def matriz_global(num_membros, m_incidencia, m_nos, m_membros):
     """
     função responsável por realizar a somatória das matrizes K de cada elementos
     recebe: número de membros [inteiro], matriz incidência, matriz de nós e matriz de membros
     retorna: somatória das matrizes K de cada elemento [matriz]
     """
     
-    get_shape = calculate_K(1, m_incidencia, m_nos, m_membros) 
+    get_shape = calculate_K(1, m_incidencia, m_nos, m_membros, num_membros) 
     
     x = get_shape.shape[0] #linhas
     y = get_shape.shape[1] #colunas
     
     kg = np.zeros((x, y)) #sempre vai ser num_membros*2
-    for i in range(elementos):
-        kg += calculate_K(i, m_incidencia, m_nos, m_membros)        
+    for i in range(num_membros):
+        kg += calculate_K(i, m_incidencia, m_nos, m_membros, num_membros)        
     return kg
 
 def MR_para_solucao(matriz):
