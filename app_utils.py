@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.linalg
+from tqdm import tqdm
 
 def distancia_entre_pontos(x1, x2, y1, y2):
     """
@@ -16,14 +17,14 @@ def distancia_entre_pontos(x1, x2, y1, y2):
     
     return sqrt((x2 - x1)**2 + (y2 - y1)**2)
 
-def matriz_conectividade(numero_do_membro, incidencia, numero_de_elementos):
+def matriz_conectividade(numero_do_membro, incidencia, num_nos):
     """
     função que calcula a matriz de conectividade de um elemento específico
     recebe: número do elemento [inteiro] e a matriz de incidência lida do excel [matriz]
     retorna: conectividade [lista]
     """
     
-    conectividade = numero_de_elementos*[0]
+    conectividade = num_nos*[0]
     
     # O numero do membro-1 é a linha a matriz que eu tenho que utilizar
     no_1 = int(incidencia[numero_do_membro-1, 0])
@@ -71,59 +72,83 @@ def calculate_Se(n_membro, m_incidencia, m_nos, m_membros):
     l = distancia_entre_pontos(x_no2, x_no1, y_no2, y_no1)
     
     cordeenadas_membro = m_membros[:, n_membro-1] #pega as coordenadas do membro
+    
     coornadas_matriz = np.array([cordeenadas_membro]) #transforma em matriz
     coornadas_matriz_T = coornadas_matriz.T #calcula a transposta
+    
     me = sum(i**2 for i in cordeenadas_membro)
+    
     segunda_parte = (np.dot(coornadas_matriz_T, coornadas_matriz))/me
+    
     return ((E*A)/l)*segunda_parte
 
-def  calculate_K(n_membro, m_incidencia, m_nos, m_membros, num_membros):
+def  calculate_K(n_membro, m_incidencia, m_nos, m_membros, num_nos):
     """
     função responsável por calcular a matriz K para um elemento
     recebe: número do membro [inteiro], matriz incidência, matriz de nós e matriz de membros
     retorna: matriz K para o dado elemento
     """
     
-    MC = np.array([matriz_conectividade(n_membro, m_incidencia, num_membros)]) #matriz conectividade
-    MC_T = np.transpose(MC) #matriz conectividade transposta
-    Se = calculate_Se(n_membro, m_incidencia, m_nos, m_membros)
-    dot = MC * MC_T
+    MC = np.array([matriz_conectividade(n_membro, m_incidencia, num_nos)]).T #vetor (9,1)
+    MC_T = MC.T #vetor (1,9)
+    Se = calculate_Se(n_membro, m_incidencia, m_nos, m_membros)#(2,2)
+    dot = np.dot(MC, MC_T) 
+
     return np.kron(dot, Se) 
 
-def matriz_global(num_membros, m_incidencia, m_nos, m_membros):
+def matriz_global(num_nos, num_membros, m_incidencia, m_nos, m_membros):
     """
     função responsável por realizar a somatória das matrizes K de cada elementos
     recebe: número de membros [inteiro], matriz incidência, matriz de nós e matriz de membros
     retorna: somatória das matrizes K de cada elemento [matriz]
     """
     
-    get_shape = calculate_K(1, m_incidencia, m_nos, m_membros, num_membros) 
+    get_shape = calculate_K(1, m_incidencia, m_nos, m_membros, num_nos) 
     
     x = get_shape.shape[0] #linhas
     y = get_shape.shape[1] #colunas
     
     kg = np.zeros((x, y)) #sempre vai ser num_membros*2
-    for i in range(num_membros):
-        kg += calculate_K(i, m_incidencia, m_nos, m_membros, num_membros)        
+    for i in range(num_membros ):
+        kg += calculate_K(i, m_incidencia, m_nos, m_membros, num_nos)        
     return kg
 
-def MR_para_solucao(matriz):
+def MR_para_solucao(matriz, v_rest):
     """
     função responsável por excluir as colunas/linhas desejadas de uma matriz
     recebe: matriz
     retorna: matriz com as linhas e colunas desejadas apagadas
     """
     
-    matriz_certa = np.zeros((6, 6))
-    matriz_certa = np.delete(matriz, (0, 2, 3), axis=0) #apaga 1º, 3º e 4º linha
-    matriz_certa = np.delete(matriz_certa, (0, 2, 3), axis=1) #apaga 1º, 3º e 4º coluna
-    return matriz_certa
+    v_rest = v_rest[:,0].tolist() #transforma v_rest em lista
+    v_rest_int = [int(item) for item in v_rest] #cast dos valores para inteiro
+    
+    matriz_resp = matriz.copy() #copia a matriz recebida
+    matriz_resp = np.delete(matriz_resp, v_rest_int, axis=0) #deleta as linhas
+    matriz_resp = np.delete(matriz_resp, v_rest_int, axis=1) #deleta as colunas
+    
+    return matriz_resp
 
 def calcula_deslocamentos(matriz_rigidez, matriz_força):
     L,U = scipy.linalg.lu(matriz_rigidez, permute_l=True)
     y = scipy.linalg.solve(L, matriz_força)
     x = scipy.linalg.solve_triangular(U, y)
     return x
+
+def vetor_global_de_forcas(num_rest, v_rest, v_carregamento):
+    """
+    para perguntar: para Pg considera todos os nós com força, ou so os
+    que tem forças de apoio e que tem F ext?
+    """
+    
+    matriz_resp = v_carregamento.copy() #copia a matriz carregamento
+    
+    v_rest = v_rest[:,0].tolist()
+    v_rest_int = [int(item) for item in v_rest]
+    
+    matriz_resp = np.delete(matriz_resp, v_rest_int, axis=0) #deleta a linha do índice
+        
+    return matriz_resp
 
 def calculate_force(matriz_k, u, linha_number):
     """
@@ -192,7 +217,7 @@ def solucao_gauss(k, F, ite, tol=1e-3):
     matriz_x = np.zeros((F.shape[0], 1)) #cria uma matriz nx1
     matriz_compare = matriz_x.copy() #salva os valores da iteração anterior
     
-    for iteracao in range(ite):
+    for iteracao in tqdm(range(ite)):
         for indice in range(matriz_x.shape[0]):
             b = F[indice]
             ax = sum(a*x for a,x in zip(k[indice, :], matriz_x[:,0])) - k[indice, indice]*matriz_x[indice,0]            
@@ -206,6 +231,8 @@ def solucao_gauss(k, F, ite, tol=1e-3):
             print("Convergiu na {0}º iteracao".format(iteracao))
             break
         else:
+            print("                                          ", end="\r")
+            print("Erro: {0}".format(erro), end="\r")
             matriz_compare = matriz_x.copy() #atualiza valores 
         
     return matriz_x
