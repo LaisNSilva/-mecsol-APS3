@@ -159,25 +159,23 @@ def calculate_force(matriz_k, u, linha_number):
     linha = matriz_k[linha_number,:] #pega a linha desejada na matriz
     return np.dot(linha, u) #retorna multiplicação de linha X coluna
 
-def tensao_e_deformacao(n_elemento, n_de_membros, matriz_u, m_incidencia, m_nos):
+def tensao_e_deformacao(n_elemento, n_de_membros, matriz_u, m_incidencia, m_nos, A):
     """
     função responsável por calcular a tensão e deformação para cada membro
     recebe: número do membro desejado [inteiro], número total de membros [inteiro], matriz u calculada (completa), matriz de incidencia, matriz de nós.
     retorna: tensão [inteiro] e deformação [inteiro] calculadas para o membro desejado
     """
     
-    if n_elemento == n_de_membros:
-        matriz_aux = np.array((
-            [matriz_u[(n_elemento*2) - 2]], 
-            [matriz_u[(n_elemento*2) - 1]], 
-            [matriz_u[0]], 
-            [matriz_u[1]]))
-    else:
-         matriz_aux = np.array((
-            [matriz_u[(n_elemento*2) - 2]], 
-            [matriz_u[(n_elemento*2) - 1]], 
-            [matriz_u[(n_elemento*2)]], 
-            [matriz_u[(n_elemento*2)+1]]))
+   
+    no_1 = int(m_incidencia[n_elemento-1, 0])
+    no_2 = int(m_incidencia[n_elemento-1, 1])     
+    
+    matriz_aux = np.array((
+            matriz_u[(no_1-1)*2], 
+            matriz_u[(no_1-1)*2 +1], 
+            matriz_u[(no_2-1)*2], 
+            matriz_u[(no_2-1)*2 +1]))
+    
     
     E =  m_incidencia[n_elemento-1, 2]  
     
@@ -200,9 +198,10 @@ def tensao_e_deformacao(n_elemento, n_de_membros, matriz_u, m_incidencia, m_nos)
     c = np.array(([-cos, -sen, cos, sen]))
     
     tensao = (E/l) * np.dot(c, matriz_aux)
+    forca = (E/l) * np.dot(c, matriz_aux)*A
     deformacao = (1/l) * np.dot(c, matriz_aux)
     
-    return tensao[0], deformacao[0]
+    return tensao[0], deformacao[0], forca[0]
 
 def compara_solucoes(array1, array2):
     return max( abs( (s2 - s1)/s2) for s1,s2 in zip(array1, array2))
