@@ -129,6 +129,22 @@ def MR_para_solucao(matriz, v_rest):
     
     return matriz_resp
 
+def completa_u(matriz_u, vet_rest):
+    #faz a matriz virar lista
+    lista=[]
+    for e in matriz_u[:,0]:
+        lista.append(e)
+        
+    ## Inserir zeros no u que não tem para assim complentar
+    for i in vet_rest[:,0]:
+        lista.insert(int(i), 0)
+        
+    # Transforma em vetor de novo
+    matriz=np.array([lista])
+    matriz=matriz.T
+    
+    return matriz
+
 def calcula_deslocamentos(matriz_rigidez, matriz_força):
     L,U = scipy.linalg.lu(matriz_rigidez, permute_l=True)
     y = scipy.linalg.solve(L, matriz_força)
@@ -159,13 +175,19 @@ def calculate_force(matriz_k, u, linha_number):
     linha = matriz_k[linha_number,:] #pega a linha desejada na matriz
     return np.dot(linha, u) #retorna multiplicação de linha X coluna
 
+def calculate_force_complete(KG, u_completo, vet_rest):
+    lista_forcas = []
+    for i in vet_rest[:,0]:
+        lista_forcas.append(calculate_force(KG, u_completo, int(i)))
+        
+    return lista_forcas
+
 def tensao_e_deformacao(n_elemento, n_de_membros, matriz_u, m_incidencia, m_nos, A):
     """
     função responsável por calcular a tensão e deformação para cada membro
     recebe: número do membro desejado [inteiro], número total de membros [inteiro], matriz u calculada (completa), matriz de incidencia, matriz de nós.
     retorna: tensão [inteiro] e deformação [inteiro] calculadas para o membro desejado
     """
-    
    
     no_1 = int(m_incidencia[n_elemento-1, 0])
     no_2 = int(m_incidencia[n_elemento-1, 1])     
@@ -222,16 +244,13 @@ def solucao_gauss(k, F, ite, tol=1e-3):
             ax = sum(a*x for a,x in zip(k[indice, :], matriz_x[:,0])) - k[indice, indice]*matriz_x[indice,0]            
             matriz_x[indice] = (b - ax)/k[indice, indice]
         
-        erro = compara_solucoes(matriz_compare[:,0], matriz_x[:,0])
+        if iteracao > 1:
+            erro = compara_solucoes(matriz_compare[:,0], matriz_x[:,0])
         
-        
-        
-        if erro < tol and iteracao > 1:
+        if iteracao > 1 and erro < tol:
             print("Convergiu na {0}º iteracao".format(iteracao))
             break
         else:
-            print("                                          ", end="\r")
-            print("Erro: {0}".format(erro), end="\r")
             matriz_compare = matriz_x.copy() #atualiza valores 
         
     return matriz_x
